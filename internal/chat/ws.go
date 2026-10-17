@@ -38,7 +38,12 @@ func NewHandler(logger *slog.Logger, allowedOrigins []string, chain ...*nlu.Chai
 	if len(chain) > 0 && chain[0] != nil {
 		c = chain[0]
 	} else {
-		c = nlu.NewChain()
+		var err error
+		c, err = nlu.NewDefaultChain()
+		if err != nil {
+			logger.Error("failed to initialize default nlu chain", "err", err)
+			c = nlu.NewChain()
+		}
 	}
 
 	return &Handler{
