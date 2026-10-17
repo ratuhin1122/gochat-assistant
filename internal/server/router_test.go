@@ -71,3 +71,48 @@ func TestRouter_PanicRecovery(t *testing.T) {
 		t.Fatalf("expected status 500, got %d", rr.Code)
 	}
 }
+
+func TestRouter_StaticFiles(t *testing.T) {
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
+	handler := server.New(logger)
+
+	tests := []struct {
+		name       string
+		path       string
+		wantStatus int
+		wantSubstr string
+	}{
+		{
+			name:       "root index.html",
+			path:       "/",
+			wantStatus: http.StatusOK,
+			wantSubstr: "GoChat Assistant",
+		},
+		{
+			name:       "stylesheet",
+			path:       "/style.css",
+			wantStatus: http.StatusOK,
+			wantSubstr: "prefers-color-scheme",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, tc.path, nil)
+			rr := httptest.NewRecorder()
+
+			handler.ServeHTTP(rr, req)
+
+			if rr.Code != tc.wantStatus {
+				t.Fatalf("path %q: expected status %d, got %d", tc.path, tc.wantStatus, rr.Code)
+			}
+
+			if body := rr.Body.String(); !testing.Short() && len(tc.wantSubstr) > 0 {
+				if len(body) == 0 {
+					t.Fatalf("path %q: expected non-empty body", tc.path)
+				}
+			}
+		})
+	}
+}
+

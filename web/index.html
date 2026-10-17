@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="GoChat Assistant - Real-time Intelligent Assistant">
+  <title>GoChat Assistant</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="chat-app" id="app">
+    <!-- Header -->
+    <header class="chat-header">
+      <div class="header-content">
+        <div class="brand">
+          <div class="brand-avatar" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+          </div>
+          <div class="brand-info">
+            <h1 class="brand-title">GoChat Assistant</h1>
+            <div class="status-indicator">
+              <span class="status-dot"></span>
+              <span class="status-text">Online</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Messages Container -->
+    <main class="chat-main">
+      <div class="messages-container" id="chat-messages" role="log" aria-live="polite">
+        <!-- Assistant Welcome Message -->
+        <article class="message message-assistant">
+          <div class="message-avatar" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 8V4H8"></path>
+              <rect width="16" height="12" x="4" y="8" rx="2"></rect>
+              <path d="M2 14h2"></path>
+              <path d="M20 14h2"></path>
+              <path d="M15 13v2"></path>
+              <path d="M9 13v2"></path>
+            </svg>
+          </div>
+          <div class="message-body">
+            <div class="message-bubble">
+              <p>Hello! I am your real-time GoChat Assistant. Ask me questions, check weather, or chat with me.</p>
+            </div>
+            <span class="message-time">Just now</span>
+          </div>
+        </article>
+      </div>
+    </main>
+
+    <!-- Footer / Input Form -->
+    <footer class="chat-footer">
+      <form class="chat-input-form" id="chat-form" onsubmit="return false;">
+        <div class="input-wrapper">
+          <input 
+            type="text" 
+            id="message-input" 
+            name="message"
+            class="chat-input" 
+            placeholder="Type your message here..." 
+            autocomplete="off"
+            aria-label="Message input"
+          />
+          <button type="submit" id="send-button" class="send-btn" aria-label="Send message">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </button>
+        </div>
+      </form>
+    </footer>
+  </div>
+</body>
+</html>

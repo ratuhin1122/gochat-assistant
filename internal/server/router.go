@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/ratuhin1122/gochat-assistant/web"
 )
 
 // New constructs and returns the application http.Handler.
@@ -42,6 +43,7 @@ func New(logger *slog.Logger) http.Handler {
 		r.Use(middleware.Timeout(30 * time.Second))
 
 		r.Get("/healthz", handleHealthz)
+		r.Handle("/*", http.FileServer(http.FS(web.Files)))
 	})
 
 	return r
