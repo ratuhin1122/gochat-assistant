@@ -11,6 +11,7 @@ import (
 
 	"github.com/coder/websocket"
 	"github.com/ratuhin1122/gochat-assistant/internal/config"
+	"github.com/ratuhin1122/gochat-assistant/internal/nlu"
 	"golang.org/x/time/rate"
 )
 
@@ -26,16 +27,26 @@ type Handler struct {
 	allowedOrigins []string
 	validator      *MessageValidator
 	ipLimiter      *IPRateLimiter
+	chain          *nlu.Chain
 }
 
-// NewHandler constructs a chat Handler with verified origins and rate limiting.
+// NewHandler constructs a chat Handler with verified origins, rate limiting, and an NLU chain.
 // If allowedOrigins is empty, it defaults to localhost origins.
-func NewHandler(logger *slog.Logger, allowedOrigins []string) *Handler {
+// If chain is omitted or nil, a default chain is created.
+func NewHandler(logger *slog.Logger, allowedOrigins []string, chain ...*nlu.Chain) *Handler {
+	var c *nlu.Chain
+	if len(chain) > 0 && chain[0] != nil {
+		c = chain[0]
+	} else {
+		c = nlu.NewChain()
+	}
+
 	return &Handler{
 		logger:         logger,
 		allowedOrigins: resolveOrigins(allowedOrigins),
 		validator:      NewMessageValidator(),
 		ipLimiter:      NewIPRateLimiter(rate.Every(time.Minute/config.RateLimitIPUpgradesPerMin), config.RateLimitIPBurst),
+		chain:          c,
 	}
 }
 
@@ -135,8 +146,16 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// Valid message: echo back as outgoing JSON message
-		outgoing := NewOutgoingMessage(incoming.Type, incoming.Text)
+		// Process message through NLU chain
+		resp, err := h.chain.Respond(ctx, nlu.Request{Text: incoming.Text})
+		if err != nil {
+			h.logger.ErrorContext(ctx, "nlu chain failed", "err", err)
+			errResp, _ := json.Marshal(NewErrorMessage("failed to process message"))
+			_ = conn.Write(ctx, websocket.MessageText, errResp)
+			continue
+		}
+
+		outgoing := NewOutgoingMessage(incoming.Type, resp.Text)
 		outBytes, err := json.Marshal(outgoing)
 		if err != nil {
 			h.logger.ErrorContext(ctx, "failed to marshal response", "err", err)

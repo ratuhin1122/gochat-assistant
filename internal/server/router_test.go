@@ -12,6 +12,7 @@ import (
 
 	"github.com/coder/websocket"
 	"github.com/go-chi/chi/v5"
+	"github.com/ratuhin1122/gochat-assistant/internal/nlu"
 	"github.com/ratuhin1122/gochat-assistant/internal/server"
 )
 
@@ -156,8 +157,8 @@ func TestRouter_WebSocket(t *testing.T) {
 		t.Fatalf("expected MessageText, got %v", typ)
 	}
 
-	if !strings.Contains(string(data), `"text":"test ping"`) {
-		t.Errorf("expected response containing test ping, got %s", string(data))
+	if !strings.Contains(string(data), nlu.DefaultFallback) {
+		t.Errorf("expected response containing fallback %q, got %s", nlu.DefaultFallback, string(data))
 	}
 
 	_ = conn.Close(websocket.StatusNormalClosure, "")
@@ -209,7 +210,6 @@ func TestRouter_WebSocket_60Seconds(t *testing.T) {
 	default:
 	}
 
-	msg := "still alive after 61s"
 	reqJSON := `{"type":"text","text":"still alive after 61s"}`
 	if err := conn.Write(ctx, websocket.MessageText, []byte(reqJSON)); err != nil {
 		t.Fatalf("failed to write after 61s: %v", err)
@@ -217,8 +217,8 @@ func TestRouter_WebSocket_60Seconds(t *testing.T) {
 
 	select {
 	case echoed := <-receivedCh:
-		if !strings.Contains(echoed, msg) {
-			t.Errorf("expected echo containing %q, got %q", msg, echoed)
+		if !strings.Contains(echoed, nlu.DefaultFallback) {
+			t.Errorf("expected response containing %q, got %q", nlu.DefaultFallback, echoed)
 		}
 	case err := <-readErrCh:
 		t.Fatalf("read error waiting for echo: %v", err)

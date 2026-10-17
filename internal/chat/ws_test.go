@@ -13,6 +13,7 @@ import (
 
 	"github.com/coder/websocket"
 	"github.com/ratuhin1122/gochat-assistant/internal/chat"
+	"github.com/ratuhin1122/gochat-assistant/internal/nlu"
 )
 
 func TestHandler_EchoAndOrigins(t *testing.T) {
@@ -100,8 +101,8 @@ func TestHandler_EchoAndOrigins(t *testing.T) {
 			if resp.Type != "text" {
 				t.Errorf("expected response type 'text', got %q", resp.Type)
 			}
-			if resp.Text != "hello gochat" {
-				t.Errorf("expected echo 'hello gochat', got %q", resp.Text)
+			if resp.Text != nlu.DefaultFallback {
+				t.Errorf("expected chain fallback %q, got %q", nlu.DefaultFallback, resp.Text)
 			}
 			if resp.ID == "" {
 				t.Errorf("expected non-empty message ID")
@@ -191,7 +192,7 @@ func TestHandler_InvalidInputDoesNotDisconnect(t *testing.T) {
 	if err := json.Unmarshal(data, &validResp); err != nil {
 		t.Fatalf("failed to unmarshal valid response: %v", err)
 	}
-	if validResp.Type != "text" || validResp.Text != "valid after error" {
+	if validResp.Type != "text" || validResp.Text != nlu.DefaultFallback {
 		t.Errorf("unexpected response: %+v", validResp)
 	}
 
@@ -333,5 +334,57 @@ func TestHandler_UpgradeRateLimit(t *testing.T) {
 	if resp.StatusCode != http.StatusTooManyRequests {
 		t.Errorf("expected status 429 Too Many Requests, got %d", resp.StatusCode)
 	}
+}
+
+type fakeChatResponder struct {
+	handled  bool
+	response nlu.Response
+}
+
+func (f *fakeChatResponder) Respond(ctx context.Context, req nlu.Request) (nlu.Response, bool, error) {
+	return f.response, f.handled, nil
+}
+
+func TestHandler_CustomResponderChain(t *testing.T) {
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
+	fake := &fakeChatResponder{
+		handled:  true,
+		response: nlu.Response{Text: "custom answer from nlu"},
+	}
+	chain := nlu.NewChain(fake)
+	handler := chat.NewHandler(logger, nil, chain)
+	srv := httptest.NewServer(handler)
+	defer srv.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	conn, _, err := websocket.Dial(ctx, srv.URL, nil)
+	if err != nil {
+		t.Fatalf("dial failed: %v", err)
+	}
+	defer conn.CloseNow()
+
+	reqMsg := chat.IncomingMessage{Type: "text", Text: "what is the answer?"}
+	b, _ := json.Marshal(reqMsg)
+	if err := conn.Write(ctx, websocket.MessageText, b); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	_, data, err := conn.Read(ctx)
+	if err != nil {
+		t.Fatalf("read failed: %v", err)
+	}
+
+	var resp chat.OutgoingMessage
+	if err := json.Unmarshal(data, &resp); err != nil {
+		t.Fatalf("unmarshal failed: %v", err)
+	}
+
+	if resp.Type != "text" || resp.Text != "custom answer from nlu" {
+		t.Errorf("expected 'custom answer from nlu', got %+v", resp)
+	}
+
+	_ = conn.Close(websocket.StatusNormalClosure, "done")
 }
 
