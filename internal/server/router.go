@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/ratuhin1122/gochat-assistant/internal/chat"
 	"github.com/ratuhin1122/gochat-assistant/web"
 )
 
@@ -18,9 +19,9 @@ import (
 //  2. Recover     – catches panics and logs them via slog
 //  3. SecHeaders  – adds conservative security response headers
 //  4. ReqLogger   – logs method/path/status/duration via slog
-//  5. Timeout(30s)– applied per-group; /ws routes MUST be registered
+//  5. Timeout(30s)– applied per-group; /ws routes are registered
 //     outside this group to avoid the deadline.
-func New(logger *slog.Logger) http.Handler {
+func New(logger *slog.Logger, allowedOrigins []string) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
@@ -36,9 +37,11 @@ func New(logger *slog.Logger) http.Handler {
 	r.Use(securityHeaders)
 	r.Use(requestLogger(logger))
 
+	// ── WebSocket route (must be outside the 30s timeout middleware) ──────
+	chatHandler := chat.NewHandler(logger, allowedOrigins)
+	r.Get("/ws", chatHandler.ServeHTTP)
+
 	// ── Timed group (regular HTTP routes) ─────────────────────────────────
-	// WebSocket / long-poll routes must be added to the router OUTSIDE this
-	// group so they are not subject to the 30 s deadline.
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.Timeout(30 * time.Second))
 

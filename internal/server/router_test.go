@@ -1,19 +1,23 @@
 package server_test
 
 import (
+	"context"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/coder/websocket"
 	"github.com/go-chi/chi/v5"
 	"github.com/ratuhin1122/gochat-assistant/internal/server"
 )
 
 func TestRouter_Healthz(t *testing.T) {
 	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
-	handler := server.New(logger)
+	handler := server.New(logger, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
 	rr := httptest.NewRecorder()
@@ -51,10 +55,10 @@ func TestRouter_PanicRecovery(t *testing.T) {
 	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 	// Build router and add a panic route to test panic recovery middleware
 	r := chi.NewRouter()
-	r.Mount("/", server.New(logger))
+	r.Mount("/", server.New(logger, nil))
 
 	// Directly test the panic handler with server router
-	mux, ok := server.New(logger).(*chi.Mux)
+	mux, ok := server.New(logger, nil).(*chi.Mux)
 	if !ok {
 		t.Fatal("expected *chi.Mux")
 	}
@@ -74,7 +78,7 @@ func TestRouter_PanicRecovery(t *testing.T) {
 
 func TestRouter_StaticFiles(t *testing.T) {
 	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
-	handler := server.New(logger)
+	handler := server.New(logger, nil)
 
 	tests := []struct {
 		name       string
@@ -115,4 +119,38 @@ func TestRouter_StaticFiles(t *testing.T) {
 		})
 	}
 }
+
+func TestRouter_WebSocket(t *testing.T) {
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
+	handler := server.New(logger, nil)
+	srv := httptest.NewServer(handler)
+	defer srv.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http") + "/ws"
+	conn, _, err := websocket.Dial(ctx, wsURL, nil)
+	if err != nil {
+		t.Fatalf("failed to dial websocket on router: %v", err)
+	}
+	defer conn.CloseNow()
+
+	msg := "test ping"
+	if err := conn.Write(ctx, websocket.MessageText, []byte(msg)); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	typ, data, err := conn.Read(ctx)
+	if err != nil {
+		t.Fatalf("read failed: %v", err)
+	}
+
+	if typ != websocket.MessageText || string(data) != msg {
+		t.Errorf("expected echo %q, got %q", msg, string(data))
+	}
+
+	_ = conn.Close(websocket.StatusNormalClosure, "")
+}
+
 
