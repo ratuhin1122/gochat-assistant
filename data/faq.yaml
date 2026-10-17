@@ -1,3 +1,120 @@
-# FAQ rules – add entries here
-# - pattern: "hello"
-#   reply: "Hi there! How can I help you?"
+- id: greeting
+  questions:
+    - "hello"
+    - "hi"
+    - "hey there"
+    - "good morning"
+  answer: "Hello! How can I assist you today?"
+
+- id: how_are_you
+  questions:
+    - "how are you"
+    - "how are you doing"
+    - "how is it going"
+    - "how are things"
+  answer: "I'm doing well, thank you! Ready to help you with your questions."
+
+- id: what_can_you_do
+  questions:
+    - "what can you do"
+    - "what are your capabilities"
+    - "how can you help me"
+    - "what features do you have"
+  answer: "I can answer FAQs, provide weather updates, and chat with you using AI."
+
+- id: who_built_you
+  questions:
+    - "who built you"
+    - "who created you"
+    - "who is your developer"
+    - "who made you"
+  answer: "I was built by the GoChat team using Go and real-time WebSockets."
+
+- id: help
+  questions:
+    - "help"
+    - "i need help"
+    - "can you help me"
+    - "what can i ask you"
+  answer: "Feel free to ask me general questions, ask about the weather, or just say hello!"
+
+- id: thanks
+  questions:
+    - "thank you"
+    - "thanks"
+    - "thanks a lot"
+    - "appreciate it"
+  answer: "You're welcome! Let me know if you need anything else."
+
+- id: goodbye
+  questions:
+    - "bye"
+    - "goodbye"
+    - "see you later"
+    - "cya"
+    - "farewell"
+  answer: "Goodbye! Have a great day ahead!"
+
+- id: hours
+  questions:
+    - "what are your hours"
+    - "when are you available"
+    - "are you open 24/7"
+    - "operating hours"
+  answer: "I am available 24/7 to assist you whenever you need."
+
+- id: weather
+  questions:
+    - "how do i check the weather"
+    - "can you tell me the weather"
+    - "weather report"
+    - "what's the weather"
+  answer: "Just ask me something like 'weather in New York' or 'what is the weather in London'."
+
+- id: pricing
+  questions:
+    - "is this service free"
+    - "how much does it cost"
+    - "what is the price"
+    - "pricing plans"
+  answer: "GoChat Assistant is free and open-source software."
+
+- id: languages
+  questions:
+    - "what languages do you speak"
+    - "do you support other languages"
+    - "can you speak spanish"
+    - "what language do you support"
+  answer: "Currently I primarily communicate in English, but more languages are planned."
+
+- id: privacy
+  questions:
+    - "how is my data handled"
+    - "is my chat private"
+    - "do you store my messages"
+    - "what is your privacy policy"
+  answer: "Your privacy is respected. Messages are processed in real-time and handled securely."
+
+- id: human_agent
+  questions:
+    - "can i talk to a human"
+    - "connect me to a representative"
+    - "speak with an agent"
+    - "customer support agent"
+  answer: "I am an automated assistant. For human support, please reach out via email support."
+
+- id: feedback
+  questions:
+    - "how can i give feedback"
+    - "i have a suggestion"
+    - "report a bug"
+    - "give feedback"
+  answer: "We welcome your feedback! Please submit issues or suggestions on our GitHub repository."
+
+- id: joke
+  questions:
+    - "tell me a joke"
+    - "say something funny"
+    - "make me laugh"
+    - "know any jokes"
+  answer: "Why do Go programmers wear glasses? Because they don't C#!"
