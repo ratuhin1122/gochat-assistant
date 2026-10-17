@@ -6,11 +6,16 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/coder/websocket"
 )
 
-const maxMessageSize = 4096
+const (
+	maxMessageSize = 4096
+	pingInterval   = 30 * time.Second
+	pingTimeout    = 10 * time.Second
+)
 
 // Handler handles WebSocket connections for the chatbot.
 type Handler struct {
@@ -35,7 +40,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx := r.Context()
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
 
 	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
 		OriginPatterns: h.allowedOrigins,
@@ -48,6 +54,28 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Enforce maximum incoming message size
 	conn.SetReadLimit(maxMessageSize)
+
+	// Active heartbeat: ping periodically to detect dead connections
+	go func() {
+		ticker := time.NewTicker(pingInterval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				pingCtx, pingCancel := context.WithTimeout(ctx, pingTimeout)
+				err := conn.Ping(pingCtx)
+				pingCancel()
+				if err != nil {
+					conn.CloseNow()
+					cancel()
+					return
+				}
+			}
+		}
+	}()
 
 	// Echo text messages until connection closes or context is canceled
 	for {
