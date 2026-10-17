@@ -137,9 +137,19 @@
     };
 
     ws.onmessage = function (event) {
-      const msg = typeof event.data === 'string' ? event.data : '';
-      if (msg) {
-        renderMessage('assistant', msg);
+      if (!event.data) return;
+      try {
+        const data = JSON.parse(event.data);
+        if (data && data.text) {
+          if (data.type === 'error') {
+            renderMessage('assistant', `⚠️ ${data.text}`);
+          } else {
+            renderMessage('assistant', data.text);
+          }
+        }
+      } catch (err) {
+        // Fallback for non-JSON string
+        renderMessage('assistant', event.data);
       }
     };
 
@@ -181,8 +191,12 @@
     // Render user message immediately
     renderMessage('user', text);
 
-    // Send via WebSocket
-    ws.send(text);
+    // Send JSON payload via WebSocket
+    const payload = JSON.stringify({
+      type: 'text',
+      text: text
+    });
+    ws.send(payload);
 
     // Clear and refocus input
     messageInput.value = '';

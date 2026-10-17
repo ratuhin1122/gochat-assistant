@@ -142,8 +142,8 @@ func TestRouter_WebSocket(t *testing.T) {
 	}
 	defer conn.CloseNow()
 
-	msg := "test ping"
-	if err := conn.Write(ctx, websocket.MessageText, []byte(msg)); err != nil {
+	reqJSON := `{"type":"text","text":"test ping"}`
+	if err := conn.Write(ctx, websocket.MessageText, []byte(reqJSON)); err != nil {
 		t.Fatalf("write failed: %v", err)
 	}
 
@@ -152,8 +152,12 @@ func TestRouter_WebSocket(t *testing.T) {
 		t.Fatalf("read failed: %v", err)
 	}
 
-	if typ != websocket.MessageText || string(data) != msg {
-		t.Errorf("expected echo %q, got %q", msg, string(data))
+	if typ != websocket.MessageText {
+		t.Fatalf("expected MessageText, got %v", typ)
+	}
+
+	if !strings.Contains(string(data), `"text":"test ping"`) {
+		t.Errorf("expected response containing test ping, got %s", string(data))
 	}
 
 	_ = conn.Close(websocket.StatusNormalClosure, "")
@@ -206,14 +210,15 @@ func TestRouter_WebSocket_60Seconds(t *testing.T) {
 	}
 
 	msg := "still alive after 61s"
-	if err := conn.Write(ctx, websocket.MessageText, []byte(msg)); err != nil {
+	reqJSON := `{"type":"text","text":"still alive after 61s"}`
+	if err := conn.Write(ctx, websocket.MessageText, []byte(reqJSON)); err != nil {
 		t.Fatalf("failed to write after 61s: %v", err)
 	}
 
 	select {
 	case echoed := <-receivedCh:
-		if echoed != msg {
-			t.Errorf("expected echo %q, got %q", msg, echoed)
+		if !strings.Contains(echoed, msg) {
+			t.Errorf("expected echo containing %q, got %q", msg, echoed)
 		}
 	case err := <-readErrCh:
 		t.Fatalf("read error waiting for echo: %v", err)

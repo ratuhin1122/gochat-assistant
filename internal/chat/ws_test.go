@@ -2,6 +2,7 @@ package chat_test
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
@@ -72,9 +73,13 @@ func TestHandler_EchoAndOrigins(t *testing.T) {
 			}
 			defer conn.CloseNow()
 
-			// Test Echo
-			msg := "hello gochat"
-			if err := conn.Write(ctx, websocket.MessageText, []byte(msg)); err != nil {
+			// Send valid JSON message
+			reqMsg := chat.IncomingMessage{
+				Type: "text",
+				Text: "hello gochat",
+			}
+			reqBytes, _ := json.Marshal(reqMsg)
+			if err := conn.Write(ctx, websocket.MessageText, reqBytes); err != nil {
 				t.Fatalf("write failed: %v", err)
 			}
 
@@ -86,8 +91,23 @@ func TestHandler_EchoAndOrigins(t *testing.T) {
 			if typ != websocket.MessageText {
 				t.Errorf("expected MessageText, got %v", typ)
 			}
-			if string(data) != msg {
-				t.Errorf("expected echo %q, got %q", msg, string(data))
+
+			var resp chat.OutgoingMessage
+			if err := json.Unmarshal(data, &resp); err != nil {
+				t.Fatalf("failed to parse response JSON: %v, raw: %s", err, string(data))
+			}
+
+			if resp.Type != "text" {
+				t.Errorf("expected response type 'text', got %q", resp.Type)
+			}
+			if resp.Text != "hello gochat" {
+				t.Errorf("expected echo 'hello gochat', got %q", resp.Text)
+			}
+			if resp.ID == "" {
+				t.Errorf("expected non-empty message ID")
+			}
+			if resp.Timestamp == "" {
+				t.Errorf("expected non-empty timestamp")
 			}
 
 			// Clean close
@@ -96,6 +116,86 @@ func TestHandler_EchoAndOrigins(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestHandler_InvalidInputDoesNotDisconnect(t *testing.T) {
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
+	handler := chat.NewHandler(logger, nil)
+	srv := httptest.NewServer(handler)
+	defer srv.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	conn, _, err := websocket.Dial(ctx, srv.URL, nil)
+	if err != nil {
+		t.Fatalf("dial failed: %v", err)
+	}
+	defer conn.CloseNow()
+
+	// 1. Send invalid non-JSON data -> expects error response, NOT disconnect
+	if err := conn.Write(ctx, websocket.MessageText, []byte("not a json string")); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	_, data, err := conn.Read(ctx)
+	if err != nil {
+		t.Fatalf("connection was closed on invalid JSON: %v", err)
+	}
+
+	var errResp chat.OutgoingMessage
+	if err := json.Unmarshal(data, &errResp); err != nil {
+		t.Fatalf("failed to unmarshal error response: %v", err)
+	}
+	if errResp.Type != "error" {
+		t.Errorf("expected Type 'error', got %q", errResp.Type)
+	}
+
+	// 2. Send validation failure (control character) -> expects error response, NOT disconnect
+	ctrlMsg := chat.IncomingMessage{
+		Type: "text",
+		Text: "bad\x00control",
+	}
+	ctrlBytes, _ := json.Marshal(ctrlMsg)
+	if err := conn.Write(ctx, websocket.MessageText, ctrlBytes); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	_, data, err = conn.Read(ctx)
+	if err != nil {
+		t.Fatalf("connection was closed on validation failure: %v", err)
+	}
+	if err := json.Unmarshal(data, &errResp); err != nil {
+		t.Fatalf("failed to unmarshal error response: %v", err)
+	}
+	if errResp.Type != "error" {
+		t.Errorf("expected Type 'error', got %q", errResp.Type)
+	}
+
+	// 3. Send valid message on the SAME connection to prove it stayed open
+	validMsg := chat.IncomingMessage{
+		Type: "text",
+		Text: "valid after error",
+	}
+	validBytes, _ := json.Marshal(validMsg)
+	if err := conn.Write(ctx, websocket.MessageText, validBytes); err != nil {
+		t.Fatalf("write failed on alive connection: %v", err)
+	}
+
+	_, data, err = conn.Read(ctx)
+	if err != nil {
+		t.Fatalf("read failed on alive connection: %v", err)
+	}
+
+	var validResp chat.OutgoingMessage
+	if err := json.Unmarshal(data, &validResp); err != nil {
+		t.Fatalf("failed to unmarshal valid response: %v", err)
+	}
+	if validResp.Type != "text" || validResp.Text != "valid after error" {
+		t.Errorf("unexpected response: %+v", validResp)
+	}
+
+	_ = conn.Close(websocket.StatusNormalClosure, "done")
 }
 
 func TestHandler_ReadLimit(t *testing.T) {

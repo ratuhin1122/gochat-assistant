@@ -3,6 +3,7 @@ package chat
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -21,6 +22,7 @@ const (
 type Handler struct {
 	logger         *slog.Logger
 	allowedOrigins []string
+	validator      *MessageValidator
 }
 
 // NewHandler constructs a chat Handler with verified origins.
@@ -29,6 +31,7 @@ func NewHandler(logger *slog.Logger, allowedOrigins []string) *Handler {
 	return &Handler{
 		logger:         logger,
 		allowedOrigins: resolveOrigins(allowedOrigins),
+		validator:      NewMessageValidator(),
 	}
 }
 
@@ -77,7 +80,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	// Echo text messages until connection closes or context is canceled
+	// Message read loop
 	for {
 		msgType, data, err := conn.Read(ctx)
 		if err != nil {
@@ -94,7 +97,30 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		if err := conn.Write(ctx, websocket.MessageText, data); err != nil {
+		// Parse incoming JSON
+		var incoming IncomingMessage
+		if err := json.Unmarshal(data, &incoming); err != nil {
+			errResp, _ := json.Marshal(NewErrorMessage("invalid JSON message format"))
+			_ = conn.Write(ctx, websocket.MessageText, errResp)
+			continue
+		}
+
+		// Validate incoming message
+		if err := h.validator.Validate(&incoming); err != nil {
+			errResp, _ := json.Marshal(NewErrorMessage(err.Error()))
+			_ = conn.Write(ctx, websocket.MessageText, errResp)
+			continue
+		}
+
+		// Valid message: echo back as outgoing JSON message
+		outgoing := NewOutgoingMessage(incoming.Type, incoming.Text)
+		outBytes, err := json.Marshal(outgoing)
+		if err != nil {
+			h.logger.ErrorContext(ctx, "failed to marshal response", "err", err)
+			continue
+		}
+
+		if err := conn.Write(ctx, websocket.MessageText, outBytes); err != nil {
 			if !errors.Is(err, context.Canceled) {
 				cs := websocket.CloseStatus(err)
 				if cs != websocket.StatusNormalClosure && cs != websocket.StatusGoingAway {
