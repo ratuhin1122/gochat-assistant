@@ -98,6 +98,12 @@ func TestRouter_StaticFiles(t *testing.T) {
 			wantStatus: http.StatusOK,
 			wantSubstr: "prefers-color-scheme",
 		},
+		{
+			name:       "javascript",
+			path:       "/app.js",
+			wantStatus: http.StatusOK,
+			wantSubstr: "textContent",
+		},
 	}
 
 	for _, tc := range tests {

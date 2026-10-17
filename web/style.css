@@ -158,8 +158,6 @@ html, body {
   font-weight: 700;
   color: var(--text-primary);
   letter-spacing: -0.01em;
-}
-
 .status-indicator {
   display: flex;
   align-items: center;
@@ -173,6 +171,17 @@ html, body {
   background-color: var(--status-online);
   box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
   animation: pulse 2s infinite ease-in-out;
+}
+
+.status-dot.connecting {
+  background-color: #f59e0b;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
+}
+
+.status-dot.offline {
+  background-color: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+  animation: none;
 }
 
 @keyframes pulse {
