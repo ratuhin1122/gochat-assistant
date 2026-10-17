@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/ratuhin1122/gochat-assistant/internal/config"
+	"github.com/ratuhin1122/gochat-assistant/internal/server"
 )
 
 func main() {
@@ -31,12 +32,9 @@ func main() {
 		"llm_provider", cfg.LLMProvider,
 	)
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /healthz", handleHealthz)
-
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,
-		Handler:           mux,
+		Handler:           server.New(logger),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      30 * time.Second,
@@ -75,13 +73,6 @@ func main() {
 	}
 
 	slog.Info("server stopped cleanly")
-}
-
-// handleHealthz responds with 200 OK for liveness probes.
-func handleHealthz(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte("ok"))
 }
 
 // newLogger builds a JSON slog.Logger at the requested level.
