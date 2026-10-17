@@ -230,3 +230,108 @@ func TestHandler_ReadLimit(t *testing.T) {
 		t.Errorf("expected StatusMessageTooBig (%d), got %d (%v)", websocket.StatusMessageTooBig, cs, err)
 	}
 }
+
+func TestHandler_MessageRateLimit(t *testing.T) {
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
+	handler := chat.NewHandler(logger, nil)
+	srv := httptest.NewServer(handler)
+	defer srv.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	conn, _, err := websocket.Dial(ctx, srv.URL, nil)
+	if err != nil {
+		t.Fatalf("dial failed: %v", err)
+	}
+	defer conn.CloseNow()
+
+	// Burst 10 messages should all succeed
+	for i := 0; i < 10; i++ {
+		msg := chat.IncomingMessage{Type: "text", Text: "burst message"}
+		b, _ := json.Marshal(msg)
+		if err := conn.Write(ctx, websocket.MessageText, b); err != nil {
+			t.Fatalf("write %d failed: %v", i, err)
+		}
+
+		_, data, err := conn.Read(ctx)
+		if err != nil {
+			t.Fatalf("read %d failed: %v", i, err)
+		}
+		var resp chat.OutgoingMessage
+		_ = json.Unmarshal(data, &resp)
+		if resp.Type != "text" {
+			t.Fatalf("expected text message on burst %d, got %q", i, resp.Type)
+		}
+	}
+
+	// 11th message in quick succession should be rate limited and return error type message
+	msg := chat.IncomingMessage{Type: "text", Text: "one too many"}
+	b, _ := json.Marshal(msg)
+	if err := conn.Write(ctx, websocket.MessageText, b); err != nil {
+		t.Fatalf("write 11th failed: %v", err)
+	}
+
+	_, data, err := conn.Read(ctx)
+	if err != nil {
+		t.Fatalf("read 11th failed (connection was closed?): %v", err)
+	}
+
+	var rateLimitResp chat.OutgoingMessage
+	if err := json.Unmarshal(data, &rateLimitResp); err != nil {
+		t.Fatalf("failed to unmarshal rate limit response: %v", err)
+	}
+	if rateLimitResp.Type != "error" {
+		t.Errorf("expected type 'error' when rate limit exceeded, got %q", rateLimitResp.Type)
+	}
+	if !strings.Contains(rateLimitResp.Text, "rate limit") {
+		t.Errorf("expected rate limit text, got %q", rateLimitResp.Text)
+	}
+
+	_ = conn.Close(websocket.StatusNormalClosure, "done")
+}
+
+func TestHandler_UpgradeRateLimit(t *testing.T) {
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
+	handler := chat.NewHandler(logger, nil)
+	srv := httptest.NewServer(handler)
+	defer srv.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	testIP := "203.0.113.88"
+	opts := &websocket.DialOptions{
+		HTTPHeader: http.Header{
+			"X-Forwarded-For": []string{testIP},
+		},
+	}
+
+	// Burst 10 upgrades from the same IP should succeed
+	var conns []*websocket.Conn
+	for i := 0; i < 10; i++ {
+		conn, _, err := websocket.Dial(ctx, srv.URL, opts)
+		if err != nil {
+			t.Fatalf("upgrade %d failed: %v", i, err)
+		}
+		conns = append(conns, conn)
+	}
+	defer func() {
+		for _, c := range conns {
+			_ = c.CloseNow()
+		}
+	}()
+
+	// 11th upgrade from the same IP should fail with HTTP 429 Too Many Requests
+	_, resp, err := websocket.Dial(ctx, srv.URL, opts)
+	if err == nil {
+		t.Fatalf("expected 11th upgrade to fail with 429, but succeeded")
+	}
+	if resp == nil {
+		t.Fatalf("expected non-nil HTTP response for failed upgrade")
+	}
+	if resp.StatusCode != http.StatusTooManyRequests {
+		t.Errorf("expected status 429 Too Many Requests, got %d", resp.StatusCode)
+	}
+}
+

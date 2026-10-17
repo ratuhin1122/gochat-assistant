@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
+	"github.com/ratuhin1122/gochat-assistant/internal/config"
+	"golang.org/x/time/rate"
 )
 
 const (
@@ -23,15 +25,17 @@ type Handler struct {
 	logger         *slog.Logger
 	allowedOrigins []string
 	validator      *MessageValidator
+	ipLimiter      *IPRateLimiter
 }
 
-// NewHandler constructs a chat Handler with verified origins.
+// NewHandler constructs a chat Handler with verified origins and rate limiting.
 // If allowedOrigins is empty, it defaults to localhost origins.
 func NewHandler(logger *slog.Logger, allowedOrigins []string) *Handler {
 	return &Handler{
 		logger:         logger,
 		allowedOrigins: resolveOrigins(allowedOrigins),
 		validator:      NewMessageValidator(),
+		ipLimiter:      NewIPRateLimiter(rate.Every(time.Minute/config.RateLimitIPUpgradesPerMin), config.RateLimitIPBurst),
 	}
 }
 
@@ -40,6 +44,14 @@ func NewHandler(logger *slog.Logger, allowedOrigins []string) *Handler {
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Rate limit WebSocket upgrades per IP (10 per minute)
+	ip := ClientIP(r)
+	if !h.ipLimiter.Allow(ip) {
+		h.logger.WarnContext(r.Context(), "websocket upgrade rate limit exceeded", "ip", ip)
+		http.Error(w, http.StatusText(http.StatusTooManyRequests), http.StatusTooManyRequests)
 		return
 	}
 
@@ -57,6 +69,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Enforce maximum incoming message size
 	conn.SetReadLimit(maxMessageSize)
+
+	// Rate limit incoming messages per connection (5 per second, burst 10)
+	msgLimiter := rate.NewLimiter(rate.Limit(config.RateLimitConnMessagesPerSec), config.RateLimitConnBurst)
 
 	// Active heartbeat: ping periodically to detect dead connections
 	go func() {
@@ -94,6 +109,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if msgType != websocket.MessageText {
+			continue
+		}
+
+		// Enforce per-connection message rate limit (5 per sec, burst 10)
+		if !msgLimiter.Allow() {
+			h.logger.WarnContext(ctx, "per-connection message rate limit exceeded")
+			errResp, _ := json.Marshal(NewErrorMessage("rate limit exceeded: too many messages, please slow down"))
+			_ = conn.Write(ctx, websocket.MessageText, errResp)
 			continue
 		}
 

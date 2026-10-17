@@ -16,6 +16,14 @@ const (
 	ProviderNone   LLMProvider = "none"
 )
 
+// Rate limit constants for WebSocket connections and messaging.
+const (
+	RateLimitConnMessagesPerSec = 5
+	RateLimitConnBurst          = 10
+	RateLimitIPUpgradesPerMin   = 10
+	RateLimitIPBurst            = 10
+)
+
 // Config holds all runtime configuration for gochat-assistant.
 // Values are populated from environment variables; see Load for defaults.
 type Config struct {
