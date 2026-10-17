@@ -17,4 +17,5 @@ Rules:
 - Pass context.Context everywhere. Wrap errors with %w. No global mutable state.
 - Keep interfaces small. Write table-driven tests for new logic.
 - Never hardcode secrets. Never commit .env.
+- WebSocket connections use a server ping every 30s with a 10s timeout; always cancel the connection context when the read loop exits.
 - After each task run: go build ./... && go vet ./... && go test ./...

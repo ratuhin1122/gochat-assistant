@@ -153,4 +153,70 @@ func TestRouter_WebSocket(t *testing.T) {
 	_ = conn.Close(websocket.StatusNormalClosure, "")
 }
 
+func TestRouter_WebSocket_60Seconds(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping 60s test in short mode")
+	}
+
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
+	handler := server.New(logger, nil)
+	srv := httptest.NewServer(handler)
+	defer srv.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 75*time.Second)
+	defer cancel()
+
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http") + "/ws"
+	conn, _, err := websocket.Dial(ctx, wsURL, nil)
+	if err != nil {
+		t.Fatalf("failed to dial websocket on router: %v", err)
+	}
+	defer conn.CloseNow()
+
+	t.Log("WebSocket connected; running client reader and waiting 61 seconds...")
+
+	readErrCh := make(chan error, 1)
+	receivedCh := make(chan string, 1)
+	go func() {
+		for {
+			typ, data, err := conn.Read(ctx)
+			if err != nil {
+				readErrCh <- err
+				return
+			}
+			if typ == websocket.MessageText {
+				receivedCh <- string(data)
+			}
+		}
+	}()
+
+	// Wait 61 seconds (longer than the 30s timeout middleware)
+	time.Sleep(61 * time.Second)
+
+	select {
+	case err := <-readErrCh:
+		t.Fatalf("connection died prematurely before 61s: %v", err)
+	default:
+	}
+
+	msg := "still alive after 61s"
+	if err := conn.Write(ctx, websocket.MessageText, []byte(msg)); err != nil {
+		t.Fatalf("failed to write after 61s: %v", err)
+	}
+
+	select {
+	case echoed := <-receivedCh:
+		if echoed != msg {
+			t.Errorf("expected echo %q, got %q", msg, echoed)
+		}
+	case err := <-readErrCh:
+		t.Fatalf("read error waiting for echo: %v", err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for echo after 61s")
+	}
+
+	_ = conn.Close(websocket.StatusNormalClosure, "")
+}
+
+
 
