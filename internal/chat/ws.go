@@ -102,7 +102,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.logger.WarnContext(ctx, "websocket accept failed", "err", err)
 		return
 	}
-	defer conn.CloseNow()
+	defer func() { _ = conn.CloseNow() }()
 
 	observability.ActiveWSConnections.Inc()
 	defer observability.ActiveWSConnections.Dec()
@@ -133,7 +133,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				err := conn.Ping(pingCtx)
 				pingCancel()
 				if err != nil {
-					conn.CloseNow()
+					_ = conn.CloseNow()
 					cancel()
 					return
 				}
@@ -233,9 +233,10 @@ func resolveOrigins(origins []string) []string {
 	var res []string
 	for _, o := range origins {
 		res = append(res, o)
-		if o == "localhost" {
+		switch o {
+		case "localhost":
 			res = append(res, "localhost:*")
-		} else if o == "127.0.0.1" {
+		case "127.0.0.1":
 			res = append(res, "127.0.0.1:*")
 		}
 	}

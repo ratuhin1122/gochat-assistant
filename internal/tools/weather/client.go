@@ -202,7 +202,7 @@ func (c *Client) GetWeather(ctx context.Context, city string) (*Weather, error) 
 	return &Weather{
 		City:        location.Name,
 		Temperature: temp,
-		Condition:   WeatherCodeToText(code),
+		Condition:   CodeToText(code),
 		Wind:        wind,
 	}, nil
 }
@@ -212,8 +212,8 @@ func (c *Client) Get(ctx context.Context, city string) (*Weather, error) {
 	return c.GetWeather(ctx, city)
 }
 
-// WeatherCodeToText translates WMO weather interpretation codes into descriptive text.
-func WeatherCodeToText(code int) string {
+// CodeToText translates WMO weather interpretation codes into descriptive text.
+func CodeToText(code int) string {
 	switch code {
 	case 0:
 		return "Clear sky"

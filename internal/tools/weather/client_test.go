@@ -107,7 +107,7 @@ func TestClient_GetWeather_WeatherCodes(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.wantCond, func(t *testing.T) {
-			cond := weather.WeatherCodeToText(tc.code)
+			cond := weather.CodeToText(tc.code)
 			if cond != tc.wantCond {
 				t.Errorf("code %d: got %q, want %q", tc.code, cond, tc.wantCond)
 			}
