@@ -69,19 +69,21 @@ func TestNewProvider_Factory(t *testing.T) {
 		}
 	})
 
-	t.Run("ollama provider returns ErrNotImplemented", func(t *testing.T) {
+	t.Run("ollama provider returns OllamaProvider", func(t *testing.T) {
 		cfg := &config.Config{
 			LLMProvider: config.ProviderOllama,
+			OllamaURL:   "http://localhost:11434",
+			OllamaModel: "llama3",
 		}
 		p, err := NewProvider(cfg)
-		if err == nil {
-			t.Fatal("expected ErrNotImplemented for ollama, got nil")
+		if err != nil {
+			t.Fatalf("unexpected error creating Ollama provider: %v", err)
 		}
-		if !errors.Is(err, ErrNotImplemented) {
-			t.Errorf("expected ErrNotImplemented, got %v", err)
+		if p == nil {
+			t.Fatal("expected non-nil provider")
 		}
-		if p != nil {
-			t.Errorf("expected nil provider, got %v", p)
+		if p.Name() != "ollama" {
+			t.Errorf("expected Name() == 'ollama', got %q", p.Name())
 		}
 	})
 

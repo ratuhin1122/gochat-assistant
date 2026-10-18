@@ -64,7 +64,7 @@ func NewProvider(cfg *config.Config) (Provider, error) {
 	case config.ProviderGemini:
 		return NewGeminiProvider(cfg)
 	case config.ProviderOllama:
-		return nil, fmt.Errorf("llm: ollama provider: %w", ErrNotImplemented)
+		return NewOllamaProvider(cfg)
 	default:
 		return nil, fmt.Errorf("llm: unknown provider %q: %w", cfg.LLMProvider, ErrNotImplemented)
 	}
