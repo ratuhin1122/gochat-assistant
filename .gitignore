@@ -16,6 +16,7 @@ vendor/
 # Environment / secrets
 .env
 .env.*
+!.env.example
 
 # IDE / OS
 .idea/
