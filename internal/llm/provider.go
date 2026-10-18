@@ -53,7 +53,6 @@ func (Noop) Generate(_ context.Context, _ []Message) (string, error) { return ""
 // ── Factory ───────────────────────────────────────────────────────────────────
 
 // NewProvider constructs the appropriate Provider for the given config.
-// Currently only config.ProviderNone is supported; all others return ErrNotImplemented.
 func NewProvider(cfg *config.Config) (Provider, error) {
 	if cfg == nil {
 		return nil, errors.New("llm: config must not be nil")
@@ -63,7 +62,7 @@ func NewProvider(cfg *config.Config) (Provider, error) {
 	case config.ProviderNone:
 		return Noop{}, nil
 	case config.ProviderGemini:
-		return nil, fmt.Errorf("llm: gemini provider: %w", ErrNotImplemented)
+		return NewGeminiProvider(cfg)
 	case config.ProviderOllama:
 		return nil, fmt.Errorf("llm: ollama provider: %w", ErrNotImplemented)
 	default:
