@@ -40,14 +40,18 @@ func NewChain(responders ...Responder) *Chain {
 	}
 }
 
-// NewDefaultChain constructs the default Chain with FAQResponder registered first and WeatherResponder registered after FAQ.
-func NewDefaultChain() (*Chain, error) {
+// NewDefaultChain constructs the default Chain with FAQResponder registered first,
+// WeatherResponder registered after FAQ, and any additional responders (such as LLMResponder) appended.
+func NewDefaultChain(additional ...Responder) (*Chain, error) {
 	faq, err := NewFAQResponder()
 	if err != nil {
 		return nil, fmt.Errorf("create default faq responder: %w", err)
 	}
 	weatherResp := NewWeatherResponder(nil)
-	return NewChain(faq, weatherResp), nil
+	responders := make([]Responder, 0, 2+len(additional))
+	responders = append(responders, faq, weatherResp)
+	responders = append(responders, additional...)
+	return NewChain(responders...), nil
 }
 
 // NewChainWithFallback constructs a Chain with a custom fallback message.

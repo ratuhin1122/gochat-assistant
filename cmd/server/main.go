@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/ratuhin1122/gochat-assistant/internal/config"
+	"github.com/ratuhin1122/gochat-assistant/internal/llm"
+	"github.com/ratuhin1122/gochat-assistant/internal/nlu"
 	"github.com/ratuhin1122/gochat-assistant/internal/server"
 )
 
@@ -32,9 +34,22 @@ func main() {
 		"llm_provider", cfg.LLMProvider,
 	)
 
+	llmProvider, err := llm.NewProvider(cfg)
+	if err != nil {
+		slog.Error("failed to initialize llm provider", "err", err)
+		os.Exit(1)
+	}
+
+	llmResp := nlu.NewLLMResponder(llmProvider, logger)
+	chain, err := nlu.NewDefaultChain(llmResp)
+	if err != nil {
+		slog.Error("failed to initialize nlu chain", "err", err)
+		os.Exit(1)
+	}
+
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,
-		Handler:           server.New(logger, cfg.AllowedOrigins),
+		Handler:           server.New(logger, cfg.AllowedOrigins, chain),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      30 * time.Second,
