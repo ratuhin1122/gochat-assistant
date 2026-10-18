@@ -14,6 +14,7 @@ import (
 	"github.com/ratuhin1122/gochat-assistant/internal/llm"
 	"github.com/ratuhin1122/gochat-assistant/internal/nlu"
 	"github.com/ratuhin1122/gochat-assistant/internal/server"
+	"github.com/ratuhin1122/gochat-assistant/internal/store"
 )
 
 func main() {
@@ -47,9 +48,23 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Initialize persistence store (Postgres if DATABASE_URL is set, otherwise in-memory)
+	chatStore, err := store.NewStore(context.Background(), cfg.DatabaseURL)
+	if err != nil {
+		slog.Error("failed to initialize store", "err", err)
+		os.Exit(1)
+	}
+	defer chatStore.Close()
+
+	if cfg.DatabaseURL != "" {
+		slog.Info("using postgres store; migrations applied")
+	} else {
+		slog.Info("using in-memory store")
+	}
+
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,
-		Handler:           server.New(logger, cfg.AllowedOrigins, chain),
+		Handler:           server.New(logger, cfg.AllowedOrigins, chain, chatStore),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      30 * time.Second,

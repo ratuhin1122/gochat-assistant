@@ -12,6 +12,7 @@ import (
 	"github.com/coder/websocket"
 	"github.com/ratuhin1122/gochat-assistant/internal/config"
 	"github.com/ratuhin1122/gochat-assistant/internal/nlu"
+	"github.com/ratuhin1122/gochat-assistant/internal/store"
 	"golang.org/x/time/rate"
 )
 
@@ -28,16 +29,30 @@ type Handler struct {
 	validator      *MessageValidator
 	ipLimiter      *IPRateLimiter
 	chain          *nlu.Chain
+	store          store.Store
 }
 
-// NewHandler constructs a chat Handler with verified origins, rate limiting, and an NLU chain.
+// NewHandler constructs a chat Handler with verified origins, rate limiting, an NLU chain, and a persistence store.
 // If allowedOrigins is empty, it defaults to localhost origins.
-// If chain is omitted or nil, a default chain is created.
-func NewHandler(logger *slog.Logger, allowedOrigins []string, chain ...*nlu.Chain) *Handler {
+// Optional trailing arguments can supply a *nlu.Chain and/or a store.Store.
+func NewHandler(logger *slog.Logger, allowedOrigins []string, args ...any) *Handler {
 	var c *nlu.Chain
-	if len(chain) > 0 && chain[0] != nil {
-		c = chain[0]
-	} else {
+	var s store.Store
+
+	for _, arg := range args {
+		switch v := arg.(type) {
+		case *nlu.Chain:
+			if v != nil {
+				c = v
+			}
+		case store.Store:
+			if v != nil {
+				s = v
+			}
+		}
+	}
+
+	if c == nil {
 		var err error
 		c, err = nlu.NewDefaultChain()
 		if err != nil {
@@ -46,12 +61,17 @@ func NewHandler(logger *slog.Logger, allowedOrigins []string, chain ...*nlu.Chai
 		}
 	}
 
+	if s == nil {
+		s = store.NewMemoryStore()
+	}
+
 	return &Handler{
 		logger:         logger,
 		allowedOrigins: resolveOrigins(allowedOrigins),
 		validator:      NewMessageValidator(),
 		ipLimiter:      NewIPRateLimiter(rate.Every(time.Minute/config.RateLimitIPUpgradesPerMin), config.RateLimitIPBurst),
 		chain:          c,
+		store:          s,
 	}
 }
 
@@ -82,6 +102,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer conn.CloseNow()
+
+	// Initialize conversation for this connection
+	conv, err := h.store.CreateConversation(ctx)
+	if err != nil {
+		h.logger.ErrorContext(ctx, "failed to create conversation in store", "err", err)
+	}
 
 	// Enforce maximum incoming message size
 	conn.SetReadLimit(maxMessageSize)
@@ -151,6 +177,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
+		// Persist incoming user message
+		if conv.ID.Valid {
+			if _, err := h.store.InsertMessage(ctx, conv.ID, "user", incoming.Text); err != nil {
+				h.logger.ErrorContext(ctx, "failed to persist user message", "err", err)
+			}
+		}
+
 		// Process message through NLU chain
 		resp, err := h.chain.Respond(ctx, nlu.Request{Text: incoming.Text})
 		if err != nil {
@@ -158,6 +191,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			errResp, _ := json.Marshal(NewErrorMessage("failed to process message"))
 			_ = conn.Write(ctx, websocket.MessageText, errResp)
 			continue
+		}
+
+		// Persist outgoing assistant response
+		if conv.ID.Valid {
+			if _, err := h.store.InsertMessage(ctx, conv.ID, "assistant", resp.Text); err != nil {
+				h.logger.ErrorContext(ctx, "failed to persist assistant message", "err", err)
+			}
 		}
 
 		outgoing := NewOutgoingMessage(incoming.Type, resp.Text)

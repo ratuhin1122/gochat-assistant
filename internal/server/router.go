@@ -9,7 +9,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/ratuhin1122/gochat-assistant/internal/chat"
-	"github.com/ratuhin1122/gochat-assistant/internal/nlu"
 	"github.com/ratuhin1122/gochat-assistant/web"
 )
 
@@ -22,7 +21,7 @@ import (
 //  4. ReqLogger   – logs method/path/status/duration via slog
 //  5. Timeout(30s)– applied per-group; /ws routes are registered
 //     outside this group to avoid the deadline.
-func New(logger *slog.Logger, allowedOrigins []string, chain ...*nlu.Chain) http.Handler {
+func New(logger *slog.Logger, allowedOrigins []string, args ...any) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
@@ -39,7 +38,7 @@ func New(logger *slog.Logger, allowedOrigins []string, chain ...*nlu.Chain) http
 	r.Use(requestLogger(logger))
 
 	// ── WebSocket route (must be outside the 30s timeout middleware) ──────
-	chatHandler := chat.NewHandler(logger, allowedOrigins, chain...)
+	chatHandler := chat.NewHandler(logger, allowedOrigins, args...)
 	r.Get("/ws", chatHandler.ServeHTTP)
 
 	// ── Timed group (regular HTTP routes) ─────────────────────────────────
