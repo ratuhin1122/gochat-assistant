@@ -68,6 +68,11 @@ func (r *FAQResponder) Respond(ctx context.Context, req Request) (Response, bool
 	return Response{Text: entry.Answer}, true, nil
 }
 
+// Name returns the identifier for this responder.
+func (r *FAQResponder) Name() string {
+	return "faq"
+}
+
 // FindMatch searches for the highest scoring FAQ entry for the given query.
 // Returns the best entry, its score, and whether the score met the threshold.
 func (r *FAQResponder) FindMatch(text string) (FAQEntry, float64, bool) {

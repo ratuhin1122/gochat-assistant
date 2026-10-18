@@ -8,7 +8,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/ratuhin1122/gochat-assistant/internal/chat"
+	"github.com/ratuhin1122/gochat-assistant/internal/observability"
 	"github.com/ratuhin1122/gochat-assistant/web"
 )
 
@@ -46,6 +48,7 @@ func New(logger *slog.Logger, allowedOrigins []string, args ...any) http.Handler
 		r.Use(middleware.Timeout(30 * time.Second))
 
 		r.Get("/healthz", handleHealthz)
+		r.Get("/metrics", promhttp.Handler().ServeHTTP)
 		r.Handle("/*", http.FileServer(http.FS(web.Files)))
 	})
 
@@ -104,13 +107,16 @@ func requestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 
 			next.ServeHTTP(ww, r)
 
+			duration := time.Since(start)
+			observability.HTTPRequestDuration.Observe(duration.Seconds())
+
 			logger.InfoContext(r.Context(), "request",
 				"request_id", middleware.GetReqID(r.Context()),
 				"method", r.Method,
 				"path", r.URL.Path,
 				"status", ww.Status(),
 				"bytes", ww.BytesWritten(),
-				"duration_ms", time.Since(start).Milliseconds(),
+				"duration_ms", duration.Milliseconds(),
 			)
 		})
 	}

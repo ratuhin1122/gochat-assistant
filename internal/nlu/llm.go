@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/ratuhin1122/gochat-assistant/internal/llm"
+	"github.com/ratuhin1122/gochat-assistant/internal/observability"
 )
 
 const (
@@ -42,6 +43,11 @@ func NewLLMResponder(provider llm.Provider, logger *slog.Logger, systemPrompt ..
 	}
 }
 
+// Name returns the identifier for this responder.
+func (r *LLMResponder) Name() string {
+	return "llm"
+}
+
 // Respond implements Responder. It calls the LLM provider with the system prompt
 // and user message. If the provider errors or returns an empty reply, it logs the error
 // and returns handled=false so the default fallback message is used.
@@ -62,6 +68,7 @@ func (r *LLMResponder) Respond(ctx context.Context, req Request) (Response, bool
 
 	reply, err := r.provider.Generate(ctx, messages)
 	if err != nil {
+		observability.RecordLLMError(r.provider.Name())
 		r.logger.WarnContext(ctx, "llm provider generation failed",
 			"err", err,
 			"provider", r.provider.Name(),

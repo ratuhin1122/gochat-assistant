@@ -12,6 +12,7 @@ import (
 	"github.com/coder/websocket"
 	"github.com/ratuhin1122/gochat-assistant/internal/config"
 	"github.com/ratuhin1122/gochat-assistant/internal/nlu"
+	"github.com/ratuhin1122/gochat-assistant/internal/observability"
 	"github.com/ratuhin1122/gochat-assistant/internal/store"
 	"golang.org/x/time/rate"
 )
@@ -102,6 +103,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer conn.CloseNow()
+
+	observability.ActiveWSConnections.Inc()
+	defer observability.ActiveWSConnections.Dec()
 
 	// Initialize conversation for this connection
 	conv, err := h.store.CreateConversation(ctx)

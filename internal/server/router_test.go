@@ -229,5 +229,32 @@ func TestRouter_WebSocket_60Seconds(t *testing.T) {
 	_ = conn.Close(websocket.StatusNormalClosure, "")
 }
 
+func TestRouter_Metrics(t *testing.T) {
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
+	handler := server.New(logger, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200 from GET /metrics, got %d", rr.Code)
+	}
+
+	body := rr.Body.String()
+	requiredMetrics := []string{
+		"gochat_active_websocket_connections",
+		"gochat_messages_by_responder_total",
+		"gochat_http_request_duration_seconds",
+		"gochat_llm_errors_total",
+	}
+
+	for _, metric := range requiredMetrics {
+		if !strings.Contains(body, metric) {
+			t.Errorf("expected /metrics to contain %q, but was not found in response", metric)
+		}
+	}
+}
 
 

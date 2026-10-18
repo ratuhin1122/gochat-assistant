@@ -4,6 +4,8 @@ package nlu
 import (
 	"context"
 	"fmt"
+
+	"github.com/ratuhin1122/gochat-assistant/internal/observability"
 )
 
 // DefaultFallback is the default message returned when no responder handles the request.
@@ -87,9 +89,28 @@ func (c *Chain) Respond(ctx context.Context, req Request) (Response, error) {
 			return Response{}, fmt.Errorf("responder at index %d failed: %w", i, err)
 		}
 		if handled {
+			observability.RecordMessageByResponder(responderName(r))
 			return resp, nil
 		}
 	}
 
+	observability.RecordMessageByResponder("default")
 	return Response{Text: c.fallback}, nil
+}
+
+// responderName extracts a friendly name for a Responder.
+func responderName(r Responder) string {
+	if n, ok := r.(interface{ Name() string }); ok {
+		return n.Name()
+	}
+	switch r.(type) {
+	case *FAQResponder:
+		return "faq"
+	case *WeatherResponder:
+		return "weather"
+	case *LLMResponder:
+		return "llm"
+	default:
+		return "unknown"
+	}
 }

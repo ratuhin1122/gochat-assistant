@@ -41,6 +41,11 @@ func NewWeatherResponder(client weather.Service) *WeatherResponder {
 	}
 }
 
+// Name returns the identifier for this responder.
+func (r *WeatherResponder) Name() string {
+	return "weather"
+}
+
 // Respond implements the Responder interface for weather queries.
 func (r *WeatherResponder) Respond(ctx context.Context, req Request) (Response, bool, error) {
 	if err := ctx.Err(); err != nil {
