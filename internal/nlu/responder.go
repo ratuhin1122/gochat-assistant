@@ -6,6 +6,9 @@ import (
 	"fmt"
 
 	"github.com/ratuhin1122/gochat-assistant/internal/observability"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // DefaultFallback is the default message returned when no responder handles the request.
@@ -84,12 +87,25 @@ func (c *Chain) Respond(ctx context.Context, req Request) (Response, error) {
 			return Response{}, err
 		}
 
-		resp, handled, err := r.Respond(ctx, req)
+		name := responderName(r)
+		spanCtx, span := observability.Tracer().Start(ctx, "responder."+name,
+			trace.WithAttributes(
+				attribute.String("responder.name", name),
+			),
+		)
+
+		resp, handled, err := r.Respond(spanCtx, req)
 		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+			span.End()
 			return Response{}, fmt.Errorf("responder at index %d failed: %w", i, err)
 		}
+		span.SetAttributes(attribute.Bool("responder.handled", handled))
+		span.End()
+
 		if handled {
-			observability.RecordMessageByResponder(responderName(r))
+			observability.RecordMessageByResponder(name)
 			return resp, nil
 		}
 	}

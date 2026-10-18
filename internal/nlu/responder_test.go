@@ -6,6 +6,10 @@ import (
 	"testing"
 
 	"github.com/ratuhin1122/gochat-assistant/internal/nlu"
+	"go.opentelemetry.io/otel"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+	"go.opentelemetry.io/otel/trace/noop"
 )
 
 type fakeResponder struct {
@@ -186,3 +190,44 @@ func TestChain_NilSafe(t *testing.T) {
 		t.Errorf("expected fallback on nil chain, got %q", resp.Text)
 	}
 }
+
+type namedFakeResponder struct {
+	name     string
+	handled  bool
+	response nlu.Response
+}
+
+func (r *namedFakeResponder) Name() string { return r.name }
+func (r *namedFakeResponder) Respond(ctx context.Context, req nlu.Request) (nlu.Response, bool, error) {
+	return r.response, r.handled, nil
+}
+
+func TestChain_TracingSpans(t *testing.T) {
+	sr := tracetest.NewSpanRecorder()
+	tp := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(sr))
+	otel.SetTracerProvider(tp)
+	defer otel.SetTracerProvider(noop.NewTracerProvider())
+
+	r1 := &namedFakeResponder{name: "first", handled: false}
+	r2 := &namedFakeResponder{name: "second", handled: true, response: nlu.Response{Text: "ok"}}
+	r3 := &namedFakeResponder{name: "third", handled: false}
+
+	chain := nlu.NewChain(r1, r2, r3)
+	_, err := chain.Respond(context.Background(), nlu.Request{Text: "ping"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	spans := sr.Ended()
+	if len(spans) != 2 {
+		t.Fatalf("expected 2 spans (one for first, one for second), got %d", len(spans))
+	}
+
+	if spans[0].Name() != "responder.first" {
+		t.Errorf("expected first span name 'responder.first', got %q", spans[0].Name())
+	}
+	if spans[1].Name() != "responder.second" {
+		t.Errorf("expected second span name 'responder.second', got %q", spans[1].Name())
+	}
+}
+

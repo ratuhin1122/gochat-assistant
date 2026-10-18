@@ -12,6 +12,7 @@ import (
 	"github.com/ratuhin1122/gochat-assistant/internal/chat"
 	"github.com/ratuhin1122/gochat-assistant/internal/observability"
 	"github.com/ratuhin1122/gochat-assistant/web"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 // New constructs and returns the application http.Handler.
@@ -26,6 +27,7 @@ import (
 func New(logger *slog.Logger, allowedOrigins []string, args ...any) http.Handler {
 	r := chi.NewRouter()
 
+	r.Use(otelhttp.NewMiddleware("gochat-assistant"))
 	r.Use(middleware.RequestID)
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

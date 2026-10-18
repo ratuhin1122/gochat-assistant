@@ -13,6 +13,7 @@ import (
 	"github.com/ratuhin1122/gochat-assistant/internal/config"
 	"github.com/ratuhin1122/gochat-assistant/internal/llm"
 	"github.com/ratuhin1122/gochat-assistant/internal/nlu"
+	"github.com/ratuhin1122/gochat-assistant/internal/observability"
 	"github.com/ratuhin1122/gochat-assistant/internal/server"
 	"github.com/ratuhin1122/gochat-assistant/internal/store"
 )
@@ -34,6 +35,20 @@ func main() {
 		"log_level", cfg.LogLevel,
 		"llm_provider", cfg.LLMProvider,
 	)
+
+	// Initialize OpenTelemetry tracing (OTLP exporter if OTEL_EXPORTER_OTLP_ENDPOINT set, else no-op)
+	shutdownTracer, err := observability.InitTracing(context.Background(), "gochat-assistant")
+	if err != nil {
+		slog.Error("failed to initialize tracing", "err", err)
+		os.Exit(1)
+	}
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := shutdownTracer(shutdownCtx); err != nil {
+			slog.Error("failed to shutdown tracer", "err", err)
+		}
+	}()
 
 	llmProvider, err := llm.NewProvider(cfg)
 	if err != nil {
@@ -100,6 +115,10 @@ func main() {
 	if err := srv.Shutdown(ctx); err != nil {
 		slog.Error("graceful shutdown failed", "err", err)
 		os.Exit(1)
+	}
+
+	if err := shutdownTracer(ctx); err != nil {
+		slog.Error("failed to shutdown tracer", "err", err)
 	}
 
 	slog.Info("server stopped cleanly")
