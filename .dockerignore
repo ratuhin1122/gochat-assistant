@@ -1,0 +1,15 @@
+.git
+.github
+.gemini
+.agents
+.env
+.env.*
+!.env.example
+*.log
+bin/
+dist/
+tmp/
+*.tmp
+docker-compose.yml
+Dockerfile
+.dockerignore
