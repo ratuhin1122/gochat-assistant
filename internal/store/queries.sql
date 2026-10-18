@@ -1,6 +1,6 @@
 -- name: CreateConversation :one
 INSERT INTO conversations (id)
-VALUES (COALESCE($1::uuid, gen_random_uuid()))
+VALUES (COALESCE(sqlc.narg('id')::uuid, gen_random_uuid()))
 RETURNING id, created_at;
 
 -- name: InsertMessage :one
