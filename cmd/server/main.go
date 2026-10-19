@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -19,6 +21,7 @@ import (
 )
 
 func main() {
+	loadDotEnv(".env")
 	cfg := config.Load()
 
 	if err := cfg.Validate(); err != nil {
@@ -132,4 +135,30 @@ func newLogger(level string) *slog.Logger {
 		l = slog.LevelInfo
 	}
 	return slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: l}))
+}
+
+// loadDotEnv reads key=value pairs from a .env file and sets them if not already in the environment.
+func loadDotEnv(filepath string) {
+	f, err := os.Open(filepath)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) == 2 {
+			k := strings.TrimSpace(parts[0])
+			v := strings.TrimSpace(parts[1])
+			v = strings.Trim(v, `"'`)
+			if _, exists := os.LookupEnv(k); !exists {
+				_ = os.Setenv(k, v)
+			}
+		}
+	}
 }
