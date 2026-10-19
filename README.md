@@ -29,27 +29,33 @@ The assistant routes incoming chat messages through a sequential responder chain
 
 ```mermaid
 flowchart TD
-    User([User Client]) -->|WebSocket Frame| WS[WebSocket Handler]
-    WS --> Validate{Validate Input\n<= 500 chars, UTF-8}
-    Validate -- Invalid --> ErrorReply[Send Error Message] --> User
-    Validate -- Valid --> RateLimit{Rate Limiter\n5 msg/s, burst 10}
-    RateLimit -- Exceeded --> RateLimitReply[Send Rate Limit Error] --> User
-    RateLimit -- Allowed --> FAQ{FAQ Matcher\ndata/faq.yaml}
+    User(["User Client"]) -->|WebSocket Frame| WS["WebSocket Handler"]
+    WS --> Validate{"Validate Input<br/>(max 500 chars, UTF-8)"}
     
-    FAQ -- Match Found --> SendReply[Send Bot Reply]
-    FAQ -- No Match --> Weather{Weather Tool\nCity Regex + Open-Meteo}
+    Validate -->|Invalid| ErrorReply["Send Error Message"]
+    ErrorReply --> User
     
-    Weather -- Weather Query --> SendReply
-    Weather -- Not Weather --> LLMConfig{LLM Configured?\ngemini | ollama}
+    Validate -->|Valid| RateLimit{"Rate Limiter<br/>(5 msg/s, burst 10)"}
     
-    LLMConfig -- None --> DefaultReply[Default Fallback Message]
-    LLMConfig -- Active --> CallLLM[Call LLM Provider]
+    RateLimit -->|Exceeded| RateLimitReply["Send Rate Limit Error"]
+    RateLimitReply --> User
     
-    CallLLM -- Success --> SendReply
-    CallLLM -- Error --> DefaultReply
+    RateLimit -->|Allowed| FAQ{"FAQ Matcher<br/>(data/faq.yaml)"}
+    
+    FAQ -->|Match Found| SendReply["Send Bot Reply"]
+    FAQ -->|No Match| Weather{"Weather Tool<br/>(City Regex + Open-Meteo)"}
+    
+    Weather -->|Weather Query| SendReply
+    Weather -->|Not Weather| LLMConfig{"LLM Configured?<br/>(gemini or ollama)"}
+    
+    LLMConfig -->|None| DefaultReply["Default Fallback Message"]
+    LLMConfig -->|Active| CallLLM["Call LLM Provider"]
+    
+    CallLLM -->|Success| SendReply
+    CallLLM -->|Error| DefaultReply
     
     DefaultReply --> SendReply
-    SendReply --> Store[(PostgreSQL / Memory Store)]
+    SendReply --> Store[("PostgreSQL / Memory Store")]
     SendReply --> User
 ```
 
