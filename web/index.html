@@ -1,82 +1,213 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="GoChat Assistant - Real-time Intelligent Assistant">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="description" content="GoChat Assistant - Real-time Intelligent Rule & AI Assistant">
   <title>GoChat Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
   <div class="chat-app" id="app">
-    <!-- Header -->
+    <!-- Top Navigation / Header -->
     <header class="chat-header">
-      <div class="header-content">
-        <div class="brand">
-          <div class="brand-avatar" aria-hidden="true">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-            </svg>
-          </div>
-          <div class="brand-info">
+      <div class="header-left">
+        <div class="brand-avatar" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2a10 10 0 0 1 10 10c0 5.523-4.477 10-10 10a9.96 9.96 0 0 1-4.587-1.112L3 22l1.112-4.413A9.96 9.96 0 0 1 2 12C2 6.477 6.477 2 12 2z"></path>
+            <path d="M8 12h.01M12 12h.01M16 12h.01"></path>
+          </svg>
+        </div>
+        <div class="brand-info">
+          <div class="brand-title-row">
             <h1 class="brand-title">GoChat Assistant</h1>
-            <div class="status-indicator">
-              <span class="status-dot"></span>
-              <span class="status-text">Online</span>
-            </div>
+            <span class="badge badge-version">v1.0</span>
           </div>
+          <div class="status-indicator">
+            <span class="status-dot online"></span>
+            <span class="status-text" id="status-label">Connected</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <div class="pipeline-tags">
+          <span class="tag-pill" title="Rule-based Instant FAQ">⚡ FAQ</span>
+          <span class="tag-pill" title="Real-time Weather Tool">⛅ Weather</span>
+          <span class="tag-pill" title="AI Fallback Responder">🤖 LLM</span>
+        </div>
+        <div class="header-actions">
+          <button type="button" class="icon-btn" id="btn-theme-toggle" title="Toggle theme (Light/Dark)" aria-label="Toggle theme">
+            <!-- Moon icon (dark theme active) -->
+            <svg class="theme-icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+            <!-- Sun icon (light theme active) -->
+            <svg class="theme-icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="5"></circle>
+              <line x1="12" y1="1" x2="12" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="23"></line>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+              <line x1="1" y1="12" x2="3" y2="12"></line>
+              <line x1="21" y1="12" x2="23" y2="12"></line>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+          </button>
+          <button type="button" class="icon-btn" id="btn-clear-chat" title="Clear conversation" aria-label="Clear conversation">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+          </button>
         </div>
       </div>
     </header>
 
-    <!-- Messages Container -->
-    <main class="chat-main">
-      <div class="messages-container" id="chat-messages" role="log" aria-live="polite">
-        <!-- Assistant Welcome Message -->
-        <article class="message message-assistant">
-          <div class="message-avatar" aria-hidden="true">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 8V4H8"></path>
-              <rect width="16" height="12" x="4" y="8" rx="2"></rect>
-              <path d="M2 14h2"></path>
-              <path d="M20 14h2"></path>
-              <path d="M15 13v2"></path>
-              <path d="M9 13v2"></path>
+    <!-- Main Chat Scrollable Container -->
+    <main class="chat-main" id="chat-scroll-area">
+      <div class="chat-content-wrapper">
+        <!-- Hero Welcome banner -->
+        <section class="welcome-hero" id="welcome-hero">
+          <div class="hero-icon-wrapper">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
             </svg>
           </div>
-          <div class="message-body">
-            <div class="message-bubble">
-              <p>Hello! I am your real-time GoChat Assistant. Ask me questions, check weather, or chat with me.</p>
-            </div>
-            <span class="message-time">Just now</span>
+          <h2 class="hero-title">How can I assist you today?</h2>
+          <p class="hero-subtitle">Ask quick questions, get real-time weather forecasts, or test the intelligent reasoning pipeline.</p>
+
+          <!-- Quick Suggestion Cards -->
+          <div class="suggestion-grid">
+            <button type="button" class="suggestion-card" data-prompt="What's the weather in Tokyo?">
+              <span class="suggestion-icon">⛅</span>
+              <div class="suggestion-text">
+                <span class="suggestion-heading">Weather Forecast</span>
+                <span class="suggestion-desc">"What's the weather in Tokyo?"</span>
+              </div>
+            </button>
+            <button type="button" class="suggestion-card" data-prompt="What are your capabilities?">
+              <span class="suggestion-icon">⚡</span>
+              <div class="suggestion-text">
+                <span class="suggestion-heading">System Capabilities</span>
+                <span class="suggestion-desc">"What can you do?"</span>
+              </div>
+            </button>
+            <button type="button" class="suggestion-card" data-prompt="How does your architecture work?">
+              <span class="suggestion-icon">🛠️</span>
+              <div class="suggestion-text">
+                <span class="suggestion-heading">Architecture Info</span>
+                <span class="suggestion-desc">"How does your architecture work?"</span>
+              </div>
+            </button>
+            <button type="button" class="suggestion-card" data-prompt="Who created you?">
+              <span class="suggestion-icon">💡</span>
+              <div class="suggestion-text">
+                <span class="suggestion-heading">Author & Project</span>
+                <span class="suggestion-desc">"Who created you?"</span>
+              </div>
+            </button>
           </div>
-        </article>
+        </section>
+
+        <!-- Message List -->
+        <div class="messages-container" id="chat-messages" role="log" aria-live="polite">
+          <!-- Initial Assistant Message -->
+          <article class="message message-assistant" data-role="assistant">
+            <div class="message-avatar" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"></path>
+                <rect x="4" y="8" width="16" height="12" rx="3"></rect>
+                <line x1="9" y1="13" x2="9" y2="15"></line>
+                <line x1="15" y1="13" x2="15" y2="15"></line>
+              </svg>
+            </div>
+            <div class="message-body">
+              <div class="message-bubble">
+                <p>Hello! I am your real-time GoChat Assistant. Ask me questions, check weather forecasts, or chat with me.</p>
+              </div>
+              <div class="message-meta">
+                <span class="message-time">Just now</span>
+                <button type="button" class="copy-btn" title="Copy response" aria-label="Copy response">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                  <span>Copy</span>
+                </button>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <!-- Assistant Typing Indicator -->
+        <div class="typing-indicator" id="typing-indicator" aria-hidden="true" style="display: none;">
+          <div class="message-avatar">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"></path>
+              <rect x="4" y="8" width="16" height="12" rx="3"></rect>
+              <line x1="9" y1="13" x2="9" y2="15"></line>
+              <line x1="15" y1="13" x2="15" y2="15"></line>
+            </svg>
+          </div>
+          <div class="typing-bubble">
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+          </div>
+        </div>
       </div>
+
+      <!-- Scroll to Bottom Button -->
+      <button type="button" class="scroll-bottom-btn" id="scroll-bottom-btn" aria-label="Scroll to bottom" title="Scroll to latest messages">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+      </button>
     </main>
 
-    <!-- Footer / Input Form -->
+    <!-- Footer / Prompt Input Area -->
     <footer class="chat-footer">
-      <form class="chat-input-form" id="chat-form" onsubmit="return false;">
-        <div class="input-wrapper">
-          <input 
-            type="text" 
-            id="message-input" 
-            name="message"
-            class="chat-input" 
-            placeholder="Type your message here..." 
-            autocomplete="off"
-            aria-label="Message input"
-          />
-          <button type="submit" id="send-button" class="send-btn" aria-label="Send message">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="22" y1="2" x2="11" y2="13"></line>
-              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-            </svg>
-          </button>
-        </div>
-      </form>
+      <div class="chat-footer-inner">
+        <form class="chat-input-form" id="chat-form" onsubmit="return false;">
+          <div class="input-card" id="input-card">
+            <textarea
+              id="message-input"
+              name="message"
+              class="chat-textarea"
+              placeholder="Message GoChat Assistant..."
+              rows="1"
+              maxlength="500"
+              autocomplete="off"
+              aria-label="Message prompt"
+            ></textarea>
+            
+            <div class="input-card-bottom">
+              <div class="input-actions-left">
+                <span class="char-count" id="char-counter">0 / 500</span>
+                <span class="input-hint">Press <kbd>Enter</kbd> to send, <kbd>Shift + Enter</kbd> for new line</span>
+              </div>
+
+              <div class="input-actions-right">
+                <button type="submit" id="send-button" class="send-btn" aria-label="Send message" disabled>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="19" x2="12" y2="5"></line>
+                    <polyline points="5 12 12 5 19 12"></polyline>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </form>
+        <p class="footer-disclaimer">GoChat combines fast deterministic FAQ rules, real-time Open-Meteo weather tools, and AI fallback.</p>
+      </div>
     </footer>
   </div>
+
   <script src="/app.js" defer></script>
 </body>
 </html>
