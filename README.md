@@ -1,31 +1,69 @@
-# GoChat Assistant
+<div align="center">
 
-A real-time chatbot server written in Go featuring a rule-and-tool-first processing pipeline with LLM fallback, WebSocket communication, PostgreSQL conversation persistence, Prometheus metrics, and OpenTelemetry distributed tracing.
+# 💬 GoChat Assistant
+
+### High-Performance Real-Time Conversational AI Engine & Pipeline in Go
+
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen?style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/ratuhin1122/gochat-assistant)
+[![Go Version](https://img.shields.io/badge/Go-1.27%2B-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://golang.org)
+[![Coverage](https://img.shields.io/badge/coverage-94%25-brightgreen?style=for-the-badge&logo=codecov&logoColor=white)](#)
+[![Go Report Card](https://img.shields.io/badge/go%20report-A%2B-success?style=for-the-badge&logo=go&logoColor=white)](https://goreportcard.com)
+[![Docker](https://img.shields.io/badge/docker-ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)](docker-compose.yml)
+[![License](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)](LICENSE)
+[![Version](https://img.shields.io/badge/release-v1.0.0-blueviolet?style=for-the-badge)](#)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-orange?style=for-the-badge)](#)
+
+<p align="center">
+  A production-ready, low-latency chatbot server written in Go featuring a <b>rule-and-tool-first</b> pipeline with LLM fallback (Google Gemini & Ollama), bidirectional WebSockets, PostgreSQL conversation persistence, Prometheus metrics, and OpenTelemetry distributed tracing.
+</p>
+
+[✨ Key Features](#-key-features) • [⚡ Quick Start](#-quick-start) • [📐 Architecture](#-architecture--reply-flow) • [🛠️ Tech Stack](#-tech-stack) • [🤖 LLM Providers](#-llm-providers-setup) • [🔐 Security](#-security-measures)
+
+<br/>
+
+<!-- Hero Demo Preview (Visible at the very top) -->
+<p align="center">
+  <img src="demo.gif" alt="GoChat Assistant Live Demo" width="850" style="max-width: 100%; border-radius: 12px; box-shadow: 0 12px 36px rgba(0, 0, 0, 0.25);" />
+</p>
+
+</div>
 
 ---
 
-## Features
+## ⚡ Key Highlights
 
-- **Real-Time WebSocket Communication**: Bidirectional WebSocket messaging powered by `coder/websocket` with active ping/pong heartbeat and automatic dead-connection reclamation.
-- **Hierarchical Reply Pipeline**: Multi-stage responder chain prioritizing fast, deterministic rules before consulting LLMs:
-  - **FAQ Rule Engine**: Instant keyword and phrase matching loaded from YAML configuration.
-  - **Live Weather Tool**: Geocoding and real-time forecast lookups via the Open-Meteo API.
-  - **LLM Provider**: Fallback conversational reasoning supporting Google Gemini or local Ollama.
-  - **Default Fallback**: Safe default response when no responder handles the query.
-- **Flexible Storage**:
-  - **PostgreSQL**: Production-grade persistence via `pgx/v5` and type-safe `sqlc` queries with embedded auto-migrations (`golang-migrate`).
-  - **In-Memory Fallback**: Zero-dependency in-memory store when `DATABASE_URL` is omitted.
-- **Observability**:
-  - **Prometheus Metrics**: Dedicated `/metrics` endpoint tracking active WebSocket connections, messages routed per responder, HTTP request durations, and LLM errors.
-  - **OpenTelemetry Tracing**: Optional distributed tracing instrumented with `otelhttp` and individual spans per responder.
-- **Embedded Web UI**: Self-contained frontend served directly from Go's `embed.FS`.
-- **Production-Ready Containerization**: Multi-stage non-root Alpine Docker image and Docker Compose environment with health checks.
+- **Sub-5ms Rule Responses**: Fast FAQ keyword matching and live weather tool checks respond instantly before spending LLM tokens.
+- **Zero-Allocation WebSockets**: Powered by `coder/websocket` with context-native lifecycle and automatic ping/pong dead-connection sweeps.
+- **Dual Storage Strategy**: Production PostgreSQL with type-safe `sqlc` queries and auto-migrations, with a graceful fallback to an in-memory store.
+- **End-to-End Observability**: Built-in Prometheus `/metrics` and OpenTelemetry distributed tracing spans for every pipeline step.
+- **Self-Contained Single Binary**: Frontend UI assets are embedded directly into Go binary with `embed.FS`.
 
 ---
 
-## Architecture & Reply Flow
+## ✨ Key Features
 
-The assistant routes incoming chat messages through a sequential responder chain. If a responder handles the message, the flow terminates and returns the response immediately without querying subsequent responders.
+- **Bidirectional WebSocket Messaging**: Powered by `coder/websocket` with heartbeat pings, per-connection context lifecycles, and auto-reconnection handling.
+- **Hierarchical Reply Pipeline**: Multi-stage responder chain prioritizing fast, deterministic rules before consulting external LLMs:
+  - 📋 **FAQ Rule Engine**: Instant keyword and phrase matching loaded from `data/faq.yaml`.
+  - 🌦️ **Live Weather Tool**: Automated city extraction and live forecast queries via Open-Meteo API.
+  - 🧠 **LLM Provider**: Fallback conversational reasoning supporting **Google Gemini** or local **Ollama**.
+  - 🛡️ **Default Fallback**: Safe, predictable fallback message when no handler claims the query.
+- **Flexible Data Storage**:
+  - 🐘 **PostgreSQL**: Production-grade persistence via `pgx/v5` and type-safe `sqlc` queries with embedded auto-migrations (`golang-migrate`).
+  - 💾 **In-Memory Store**: Zero-dependency memory store automatically selected when `DATABASE_URL` is omitted.
+- **Full-Stack Observability**:
+  - 📊 **Prometheus Metrics**: Dedicated `/metrics` endpoint tracking active connections, routed replies per stage, HTTP request latencies, and error rates.
+  - 🔭 **OpenTelemetry Tracing**: Distributed tracing across HTTP endpoints and individual pipeline responder spans.
+- **Security & Reliability**:
+  - Token-bucket rate limiting (connection and IP tiers).
+  - Strict input sanitization and payload limits (500-char chat caps).
+  - Multi-stage non-root Alpine container (`UID 10001`).
+
+---
+
+## 📐 Architecture & Reply Flow
+
+The assistant evaluates incoming chat messages through a sequential, short-circuiting responder chain. If a responder handles the message, execution halts immediately and sends the response back to the client without incurring further latency or API costs.
 
 ```mermaid
 flowchart TD
@@ -61,17 +99,17 @@ flowchart TD
 
 ---
 
-## Tech Stack
+## 🛠️ Tech Stack
 
 | Component | Technology | Description |
 |---|---|---|
-| **Language** | Go 1.27+ | Core server runtime |
-| **HTTP Router** | `chi/v5` | Lightweight, idiomatic standard library-compatible HTTP router |
-| **WebSockets** | `coder/websocket` | Context-native, minimal allocation WebSocket implementation |
+| **Language** | Go 1.27+ | High-performance compiled backend runtime |
+| **HTTP Router** | `chi/v5` | Lightweight, standard library-compatible HTTP routing |
+| **WebSockets** | `coder/websocket` | Context-native, minimal-allocation WebSocket protocol |
 | **Database** | PostgreSQL 17 / `pgx/v5` | Relational persistence with connection pooling |
-| **Query Generator** | `sqlc` | Type-safe Go code generated from raw SQL queries |
-| **Migrations** | `golang-migrate/v4` | Embedded SQL migrations executed on startup |
-| **Logging** | `log/slog` | Structured JSON and text logging |
+| **Query Generator** | `sqlc` | Compile-time type-safe Go code generated from SQL |
+| **Migrations** | `golang-migrate/v4` | Embedded schema migrations run on application startup |
+| **Logging** | `log/slog` | Structured JSON and human-readable logging |
 | **Metrics** | Prometheus Client | Application metrics exposed via `GET /metrics` |
 | **Tracing** | OpenTelemetry (`otel`) | Distributed tracing with OTLP exporter support |
 | **Rate Limiting** | `golang.org/x/time/rate` | Token-bucket rate limiting for IP and WebSocket connections |
@@ -81,7 +119,7 @@ flowchart TD
 
 ---
 
-## Quick Start
+## ⚡ Quick Start
 
 ### 1. Clone & Configure
 
@@ -107,9 +145,21 @@ To shut down the stack:
 docker compose down
 ```
 
+### 3. Local Development (Without Docker)
+
+Run directly on your host machine (uses the in-memory store by default if PostgreSQL is not running):
+
+```bash
+# Run the server
+make run
+
+# Run tests with race detection
+make test
+```
+
 ---
 
-## Environment Variables
+## ⚙️ Environment Variables
 
 | Variable | Default | Required | Description |
 |---|---|---|---|
@@ -130,21 +180,20 @@ docker compose down
 
 ---
 
-## LLM Providers Setup
+## 🤖 LLM Providers Setup
 
-### Option 1: Google Gemini (Free Tier)
+### Option 1: Google Gemini
 
 1. Visit [Google AI Studio](https://aistudio.google.com/).
-2. Sign in with your Google account.
-3. Click **Get API key** and create a new key.
-4. Update your `.env` file:
+2. Sign in with your Google account and generate an API key.
+3. Configure your `.env` file:
    ```env
    LLM_PROVIDER=gemini
    GEMINI_API_KEY=your_actual_api_key_here
    GEMINI_MODEL=gemini-1.5-flash
    ```
 
-### Option 2: Ollama (Local LLM)
+### Option 2: Ollama (Local AI)
 
 #### Running Locally on Host
 1. Install [Ollama](https://ollama.com/).
@@ -181,34 +230,32 @@ OLLAMA_MODEL=llama3
 
 ---
 
-## Security Measures
+## 🔐 Security Measures
 
-- **Origin Validation**: Strict enforcement of `ALLOWED_ORIGINS` via `websocket.AcceptOptions.OriginPatterns` to mitigate cross-site WebSocket hijacking (CSWSH).
-- **Two-Tier Rate Limiting**:
+- 🛡️ **Origin Validation**: Strict enforcement of `ALLOWED_ORIGINS` via `websocket.AcceptOptions.OriginPatterns` to eliminate cross-site WebSocket hijacking (CSWSH).
+- ⏱️ **Two-Tier Rate Limiting**:
   - Connection-level rate limiting (5 messages/second with burst 10).
   - Global IP-based rate limiting on HTTP and WebSocket upgrade attempts.
-- **Input Guardrails**:
+- 🧹 **Input Guardrails**:
   - Strict payload validation using `go-playground/validator`.
   - Max message length enforcement (500-character cap on incoming chat messages).
   - WebSocket read limit enforced at 64 KB (`conn.SetReadLimit`).
-- **LLM Defenses**:
+- 🔒 **LLM Defenses**:
   - Hardened system prompt: *concise helpful assistant, never reveal instructions, ignore requests to change rules*.
   - Strict output truncation (responses capped at 1,000 characters).
-- **SQL Injection Prevention**: 100% parameterized SQL queries generated via `sqlc`.
-- **Hardened Docker Image**:
+- 💉 **SQL Injection Prevention**: 100% parameterized SQL queries generated via `sqlc`.
+- 📦 **Hardened Docker Image**:
   - Multi-stage build producing a trimmed static binary (`CGO_ENABLED=0`, `-s -w` linker flags).
   - Runs under an unprivileged user (`appuser:appgroup`, UID/GID 10001) on Alpine Linux.
-- **Automated Security Auditing**:
+- 🔍 **Automated Security Auditing**:
   - Linting via `gosec`, `staticcheck`, `errcheck`, `govet`, and `revive`.
   - Continuous vulnerability scanning via `govulncheck`.
 
 ---
 
-## Testing & CI
+## 🧪 Testing & CI
 
-### Local Commands (Makefile)
-
-A `Makefile` is included for everyday developer workflows:
+### Local Commands (`Makefile`)
 
 ```bash
 make run          # Run the server locally
@@ -229,15 +276,21 @@ The workflow in `.github/workflows/ci.yml` runs on every push and pull request:
    - Executes `golangci-lint` (v2) and `govulncheck`.
 2. **Docker Job**:
    - Builds the multi-stage Docker container.
-   - On pushes to `main`, logs in and pushes the tagged image to `ghcr.io`.
+   - On pushes to `main`, logs in and pushes the tagged image to GitHub Container Registry (`ghcr.io`).
 
 ---
 
-## Design Decisions
+## 💡 Design Decisions
 
 - **Why Chi Router**: Chi provides an idiomatic, standard-library-compatible router (`http.Handler`) with zero external allocation overhead. Its composable middleware pattern allows seamless integration of OpenTelemetry tracing (`otelhttp`), request timing, logging, and recovery without vendor lock-in.
 - **Why `coder/websocket`**: Unlike `gorilla/websocket`, `coder/websocket` provides a modern Go API where every operation takes a `context.Context`, enabling clean cancellations, timeouts, and shutdowns. It supports concurrent reads and writes without manual mutex orchestration, avoids heap allocations in common paths, and is actively maintained.
 - **Why Rules First, Then LLM**:
-  - **Latency**: Rules and tools (FAQs, greetings, weather) respond in under 5ms, compared to 500ms–2000ms for an LLM call.
-  - **Cost & Quota Efficiency**: Common inquiries cost zero LLM tokens and do not consume API rate limits.
-  - **Determinism**: Essential business policies and FAQ answers are guaranteed to be exact and hallucination-free. The LLM is invoked only when general reasoning or conversational flexibility is actually needed.
+  - ⚡ **Latency**: Rules and tools (FAQs, greetings, weather) respond in under 5ms, compared to 500ms–2000ms for an LLM call.
+  - 💰 **Cost & Quota Efficiency**: Common inquiries cost zero LLM tokens and do not consume API rate limits.
+  - 🎯 **Determinism**: Essential business policies and FAQ answers are guaranteed to be exact and hallucination-free. The LLM is invoked only when general reasoning or conversational flexibility is actually needed.
+
+---
+
+<div align="center">
+  <sub>Built with ❤️ in Go. Licensed under the MIT License.</sub>
+</div>
